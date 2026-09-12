@@ -16,8 +16,7 @@ public class Main {
 
     // Shared in-memory store for SET/GET
     private static final Map<String, CacheEntry> cache = new HashMap<>();
-    private static Map<String,String> lists=new HashMap<>()
-
+    private static Map<String, List<String>> lists = new HashMap<>();
     public static void main(String[] args) {
         System.out.println("Logs from your program will appear here!");
 
@@ -201,13 +200,20 @@ public class Main {
                 String value = entry.value;
                 return "$" + value.length() + "\r\n" + value + "\r\n";
             }
-            case "RPUSH":
-                if (args.size()<3){
+            case "RPUSH": {
+                if (args.size() < 3) {
                     return "-ERR wrong number of arguments for 'set' command\r\n";
                 }
+                String key = args.get(1);
 
+                List<String> list = lists.computeIfAbsent(key, k -> new ArrayList<>());
 
+                for (int i = 2; i < args.size(); i++) {
+                    list.add(args.get(i));
+                }
 
+                return ":" + list.size() + "\r\n";
+            }
             default:
                 return "-ERR unknown command '" + command + "'\r\n";
         }
