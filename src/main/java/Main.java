@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedList;
 
 public class Main {
 
@@ -202,31 +203,64 @@ public class Main {
             }
             case "RPUSH": {
                 if (args.size() < 3) {
-                    return "-ERR wrong number of arguments for 'RPUSH' command\r\n";
+                    return "-ERR wrong number of arguments for 'rpush' command\r\n";
                 }
                 String key = args.get(1);
 
-                List<String> list = lists.computeIfAbsent(key, k -> new ArrayList<>());
+                List<String> list = lists.computeIfAbsent(key, k -> new LinkedList<>());
 
                 for (int i = 2; i < args.size(); i++) {
                     list.add(args.get(i));
                 }
 
-                return "(integer):" + list.size() + "\r\n";
+                return ":" + list.size() + "\r\n";
             }
+
             case "LPUSH": {
                 if (args.size() < 3) {
                     return "-ERR wrong number of arguments for 'lpush' command\r\n";
                 }
                 String key = args.get(1);
 
-                List<String> list = lists.computeIfAbsent(key, k -> new ArrayList<>());
+                List<String> list = lists.computeIfAbsent(key, k -> new LinkedList<>());
 
-                for (int i = args.size()-1; i>=2; i--) {
+                for (int i = args.size() - 1; i >= 2; i--) {
                     list.add(args.get(i));
                 }
 
-                return "(integer):" + list.size() + "\r\n";
+                return ":" + list.size() + "\r\n";
+            }
+
+            case "LLEN": {
+                if (args.size() < 2) {
+                    return "-ERR wrong number of arguments for 'llen' command\r\n";
+                }
+
+                String key = args.get(1);
+                List<String> list = lists.get(key);
+
+                if (list == null) {
+                    return ":0\r\n";
+                } else {
+                    return ":" + list.size() + "\r\n";
+                }
+            }
+
+            case "LPOP": {
+                if (args.size() < 2) {
+                    return "-ERR wrong number of arguments for 'lpop' command\r\n";
+                }
+
+                String key = args.get(1);
+                List<String> list = lists.get(key);
+
+                if (list == null || list.isEmpty()) {
+                    return "$-1\r\n";
+                } else {
+                    String popped = list.remove(0);
+                    return "$" + popped.length() + "\r\n" + popped + "\r\n";
+                }
+
             }
             case "LRANGE": {
                 if (args.size() < 4) {
@@ -237,7 +271,7 @@ public class Main {
                 List<String> list = lists.get(key);
 
                 if (list == null) {
-                    return "Array doesn't exist *0\r\n";
+                    return ":0\r\n";
                 }
 
                 int start;
