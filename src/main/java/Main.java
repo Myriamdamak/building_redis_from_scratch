@@ -212,8 +212,53 @@ public class Main {
                     list.add(args.get(i));
                 }
 
-                return ":" + list.size() + "\r\n";
+                return "(integer):" + list.size() + "\r\n";
             }
+            case "LRANGE": {
+                if (args.size() < 4) {
+                    return "-ERR wrong number of arguments for 'lrange' command\r\n";
+                }
+
+                String key = args.get(1);
+                List<String> list = lists.get(key);
+
+                if (list == null) {
+                    return "Array doesn't exist *0\r\n";
+                }
+
+                int start;
+                int end;
+                try {
+                    start = Integer.parseInt(args.get(2));
+                    end = Integer.parseInt(args.get(3));
+                } catch (NumberFormatException e) {
+                    return "-ERR value is not an integer or out of range\r\n";
+                }
+
+                int size = list.size();
+
+                if (start < 0) start = Math.max(size + start, 0);
+                if (end < 0) end = size + end;
+                if (end >= size) end = size - 1;
+
+                if (start > end || start >= size || size == 0) {
+                    return "*0\r\n";
+                }
+
+                StringBuilder sb = new StringBuilder();
+                int count = end - start + 1;
+                sb.append("*").append(count).append("\r\n");
+
+                for (int i = start; i <= end; i++) {
+                    String item = list.get(i);
+                    sb.append("$").append(item.length()).append("\r\n");
+                    sb.append(item).append("\r\n");
+                }
+
+                return sb.toString();
+            }
+
+
             default:
                 return "-ERR unknown command '" + command + "'\r\n";
         }
