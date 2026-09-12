@@ -202,13 +202,27 @@ public class Main {
             }
             case "RPUSH": {
                 if (args.size() < 3) {
-                    return "-ERR wrong number of arguments for 'set' command\r\n";
+                    return "-ERR wrong number of arguments for 'RPUSH' command\r\n";
                 }
                 String key = args.get(1);
 
                 List<String> list = lists.computeIfAbsent(key, k -> new ArrayList<>());
 
                 for (int i = 2; i < args.size(); i++) {
+                    list.add(args.get(i));
+                }
+
+                return "(integer):" + list.size() + "\r\n";
+            }
+            case "LPUSH": {
+                if (args.size() < 3) {
+                    return "-ERR wrong number of arguments for 'lpush' command\r\n";
+                }
+                String key = args.get(1);
+
+                List<String> list = lists.computeIfAbsent(key, k -> new ArrayList<>());
+
+                for (int i = args.size()-1; i>=2; i--) {
                     list.add(args.get(i));
                 }
 
