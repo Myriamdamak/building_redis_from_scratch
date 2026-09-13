@@ -1,3 +1,5 @@
 *.jar
 target/
 .idea/
+src/test-blpop.ps1
+test-redis.ps1
