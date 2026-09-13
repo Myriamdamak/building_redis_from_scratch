@@ -27,6 +27,7 @@ public class CommandDispatcher {
         commands.put("LPOP", new LpopCommand(listStore));
         commands.put("LRANGE", new LrangeCommand(listStore));
         commands.put("BLPOP", new BlpopCommand(listStore));
+        commands.put("Type",new TypeCommand(stringStore));
     }
 
     public String dispatch(List<String> args, CommandContext context) {

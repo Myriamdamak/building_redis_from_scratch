@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Backing store for SET/GET. Wrapping the raw map means SET/GET commands
+ * Backing store for SET/GET/TYPE. Wrapping the raw map means SET/GET commands
  * don't need to know about CacheEntry or expiry logic directly - they just
  * call set()/get().
  */
