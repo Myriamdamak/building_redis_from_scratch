@@ -122,4 +122,49 @@ public class RadixTree<V> {
         }
         return i;
     }
+
+
+    public V findMax() {
+        return findMax(root, null);
+    }
+
+    private V findMax(Node<V> node, V currentMax) {
+        if (node.isTerminal) {
+            if (currentMax == null) {
+                currentMax = node.value;
+            } else {
+                StreamEntry currentEntry = (StreamEntry) currentMax;
+                StreamEntry candidateEntry = (StreamEntry) node.value;
+
+                if (compareStreamIds(candidateEntry.id, currentEntry.id) > 0) {
+                    currentMax = node.value;
+                }
+            }
+        }
+
+        for (Node<V> child : node.children.values()) {
+            currentMax = findMax(child, currentMax);
+        }
+
+        return currentMax;
+    }
+
+    private int compareStreamIds(String id1, String id2) {
+        String[] parts1 = id1.split("-");
+        String[] parts2 = id2.split("-");
+
+        long ms1 = Long.parseLong(parts1[0]);
+        long seq1 = Long.parseLong(parts1[1]);
+
+        long ms2 = Long.parseLong(parts2[0]);
+        long seq2 = Long.parseLong(parts2[1]);
+
+        if (ms1 != ms2) {
+            return Long.compare(ms1, ms2);
+        }
+
+        return Long.compare(seq1, seq2);
+    }
+
+
 }

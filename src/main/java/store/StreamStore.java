@@ -5,8 +5,7 @@ import java.util.Map;
 
 /**
  * Backing store for stream commands (XADD).
- * Each stream key maps to its own RadixTree of entries, keyed by a
- * sortable encoding of the entry's ID.
+ * Each stream key maps to its own RadixTree of entries, keyed by a sortable encoding of the entry's ID.
  */
 public class StreamStore {
 

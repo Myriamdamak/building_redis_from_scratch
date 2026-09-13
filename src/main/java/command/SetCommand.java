@@ -52,7 +52,6 @@ public class SetCommand implements Command {
                 expiryAt = System.currentTimeMillis() + (seconds * 1000);
                 i++;
             }
-            // Unknown options are silently ignored for now
         }
 
         store.set(key, value, expiryAt);

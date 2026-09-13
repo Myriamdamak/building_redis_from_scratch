@@ -1,32 +1,42 @@
 package command;
 
-import java.util.List;
 import protocol.RespEncoder;
+import store.StreamStore;
 import store.StringStore;
 
+import java.util.List;
 
 public class TypeCommand implements Command {
-    private final StringStore store;
 
-    public TypeCommand(StringStore store) {
-        this.store = store;
+    private final StringStore stringStore;
+    private final StreamStore streamStore;
+
+    public TypeCommand(StringStore stringStore, StreamStore streamStore) {
+        this.stringStore = stringStore;
+        this.streamStore = streamStore;
     }
+
     @Override
     public String execute(List<String> args, CommandContext context) {
-        String type="none" ;
         if (args.size() < 2) {
             return RespEncoder.error("ERR wrong number of arguments for 'type' command");
         }
 
         String key = args.get(1);
-        String value = store.get(key);
+        String type = "none";
 
-        if (value != null) {
+        if (stringStore.get(key) != null) {
             type = "string";
+        } else if (streamStore.get(key) != null) {
+            type = "stream";
         }
-
 
         return RespEncoder.simpleString(type);
     }
 
-}
+
+
+    }
+
+
+

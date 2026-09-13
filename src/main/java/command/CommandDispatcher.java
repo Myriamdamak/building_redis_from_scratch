@@ -1,6 +1,7 @@
 package command;
 import protocol.RespEncoder;
 import store.ListStore;
+import store.StreamStore;
 import store.StringStore;
 
 import java.util.HashMap;
@@ -16,7 +17,7 @@ public class CommandDispatcher {
 
     private final Map<String, Command> commands = new HashMap<>();
 
-    public CommandDispatcher(StringStore stringStore, ListStore listStore) {
+    public CommandDispatcher(StringStore stringStore, ListStore listStore, StreamStore streamStore) {
         commands.put("PING", new PingCommand());
         commands.put("ECHO", new EchoCommand());
         commands.put("SET", new SetCommand(stringStore));
@@ -27,7 +28,9 @@ public class CommandDispatcher {
         commands.put("LPOP", new LpopCommand(listStore));
         commands.put("LRANGE", new LrangeCommand(listStore));
         commands.put("BLPOP", new BlpopCommand(listStore));
-        commands.put("Type",new TypeCommand(stringStore));
+        commands.put("Type",new TypeCommand(stringStore,streamStore));
+        commands.put("XADD",new XaddCommand(streamStore));
+
     }
 
     public String dispatch(List<String> args, CommandContext context) {

@@ -1,0 +1,78 @@
+package command;
+
+import protocol.RespEncoder;
+
+import java.util.List;
+import store.StreamStore;
+import java.util.ArrayList;
+import store.StreamEntry;
+import store.RadixTree;
+
+
+public class XaddCommand implements Command {
+
+    private final StreamStore store;
+
+    public XaddCommand(StreamStore store) {
+        this.store = store;
+    }
+
+    @Override
+    public String execute(List<String> args, CommandContext context) {
+        if (args.size() < 5 || (args.size() - 3) % 2 != 0) {
+            return RespEncoder.error("ERR wrong number of arguments for 'XADD' command");
+        }
+
+        String key = args.get(1);
+        String id = args.get(2);
+
+        RadixTree<StreamEntry> tree = store.getOrCreate(key);
+
+        String error = checkExplicitId(id, tree);
+
+        if (error != null) {
+            return RespEncoder.error(error);
+        }
+
+        List<String> fields = new ArrayList<>(args.subList(3, args.size()));
+        StreamEntry entry = new StreamEntry(id, fields);
+
+        tree.insert(id, entry);
+
+        return RespEncoder.bulkString(id);
+    }
+
+    private String checkExplicitId(String id, RadixTree<StreamEntry> tree) {
+        if (id.equals("0-0")) {
+            return "ERR The ID specified in XADD must be greater than 0-0";
+        }
+
+        String[] idParts = id.split("-");
+        if (idParts.length != 2) {
+            return "ERR Invalid stream ID specified as stream command argument";
+        }
+
+        long ms;
+        long seq;
+        try {
+            ms = Long.parseLong(idParts[0]);
+            seq = Long.parseLong(idParts[1]);
+        } catch (NumberFormatException e) {
+            return "ERR Invalid stream ID specified as stream command argument";
+        }
+
+        StreamEntry lastEntry = tree.findMax();
+
+        if (lastEntry != null) {
+            String[] lastParts = lastEntry.id.split("-");
+            long lastMs = Long.parseLong(lastParts[0]);
+            long lastSeq = Long.parseLong(lastParts[1]);
+
+            boolean isGreater = (ms > lastMs) || (ms == lastMs && seq > lastSeq);
+            if (!isGreater) {
+                return "ERR The ID specified in XADD is equal or smaller than the target stream top item";
+            }
+        }
+        return null;
+    }
+}

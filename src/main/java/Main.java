@@ -2,6 +2,8 @@ import server.EventLoop;
 import command.CommandDispatcher;
 import store.StringStore;
 import store.ListStore;
+import store.StreamStore;
+
 
 import java.io.IOException;
 
@@ -15,8 +17,9 @@ public class Main {
         // reads/writes the same underlying maps.
         StringStore stringStore = new StringStore();
         ListStore listStore = new ListStore();
+        StreamStore streamStore = new StreamStore();
 
-        CommandDispatcher dispatcher = new CommandDispatcher(stringStore, listStore);
+        CommandDispatcher dispatcher = new CommandDispatcher(stringStore, listStore, streamStore);
 
         EventLoop eventLoop = new EventLoop(port, dispatcher, listStore);
 
