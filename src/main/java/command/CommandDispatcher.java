@@ -30,6 +30,7 @@ public class CommandDispatcher {
         commands.put("BLPOP", new BlpopCommand(listStore));
         commands.put("Type",new TypeCommand(stringStore,streamStore));
         commands.put("XADD",new XaddCommand(streamStore));
+        commands.put("XRANGE",new XrangeCommand(streamStore));
 
     }
 

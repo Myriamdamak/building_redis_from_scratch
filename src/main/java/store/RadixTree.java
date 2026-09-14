@@ -113,6 +113,32 @@ public class RadixTree<V> {
             collect(child, results);
         }
     }
+    public List<V> collectRange(String start, String end) {
+        List<V> results = new ArrayList<>();
+        collectRange(root, start, end, results);
+        return results;
+    }
+
+    private void collectRange(
+            Node<V> node,
+            String start,
+            String end,
+            List<V> results
+    ) {
+        if (node.isTerminal) {
+            StreamEntry entry = (StreamEntry) node.value;
+
+            if (compareStreamIds(entry.id, start) >= 0 &&
+                    compareStreamIds(entry.id, end) <= 0) {
+
+                results.add(node.value);
+            }
+        }
+
+        for (Node<V> child : node.children.values()) {
+            collectRange(child, start, end, results);
+        }
+    }
 
     private static int commonPrefixLength(String a, String b) {
         int max = Math.min(a.length(), b.length());
