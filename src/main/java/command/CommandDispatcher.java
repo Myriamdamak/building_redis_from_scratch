@@ -31,6 +31,7 @@ public class CommandDispatcher {
         commands.put("Type",new TypeCommand(stringStore,streamStore));
         commands.put("XADD",new XaddCommand(streamStore));
         commands.put("XRANGE",new XrangeCommand(streamStore));
+        commands.put("XREAD",new XreadCommand(streamStore));
 
     }
 

@@ -1,32 +1,22 @@
 package store;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.TreeMap;
 
 /**
- * A compressed radix tree (also called a PATRICIA trie, or "rax" - the
- * name real Redis uses for this exact structure to store stream entries).
- *
- * Unlike a plain trie (one tree node per character), a radix tree merges
- * chains of single-child nodes into one edge labeled with a whole
- * substring. This keeps the tree shallow and memory-efficient, which
- * matters for streams that can have millions of entries with long,
- * mostly-shared ID prefixes.
-
+ * A compressed radix tree (PATRICIA trie) used to store stream entries.
  */
 public class RadixTree<V> {
 
     private static class Node<V> {
-        // The substring of the key this edge (from parent to this node) represents.
-        // Empty for the root, since the root has no incoming edge.
+
         String edgeLabel;
 
-        // Sorted by first character of each child's edge label, so
-        // iteration order == key order.
         TreeMap<Character, Node<V>> children = new TreeMap<>();
 
-        boolean isTerminal; // true if a key actually ends exactly here
+        boolean isTerminal;
         V value;
 
         Node(String edgeLabel) {
@@ -36,11 +26,15 @@ public class RadixTree<V> {
 
     private final Node<V> root = new Node<>("");
 
+    /**
+     * Inserts a key-value pair into the radix tree.
+     */
     public void insert(String key, V value) {
         insert(root, key, value);
     }
 
     private void insert(Node<V> node, String key, V value) {
+
         if (key.isEmpty()) {
             node.isTerminal = true;
             node.value = value;
@@ -51,11 +45,10 @@ public class RadixTree<V> {
         Node<V> child = node.children.get(firstChar);
 
         if (child == null) {
-            // No edge starts with this character yet - just attach a new
-            // leaf holding the entire remaining key.
             Node<V> newNode = new Node<>(key);
             newNode.isTerminal = true;
             newNode.value = value;
+
             node.children.put(firstChar, newNode);
             return;
         }
@@ -63,59 +56,97 @@ public class RadixTree<V> {
         int commonLen = commonPrefixLength(key, child.edgeLabel);
 
         if (commonLen == child.edgeLabel.length()) {
-            // The whole edge matched - recurse into the child with
-            // whatever's left of the key.
             insert(child, key.substring(commonLen), value);
             return;
         }
 
-        // Only part of the edge matched - split it.
-        // Example: edge is "1526919030474-0", inserting "1526919030475-0".
-        // Common prefix: "152691903047". We need a new branch point there.
+        // Split the existing edge.
 
-        // 1. New intermediate node holding just the common prefix.
-        Node<V> splitNode = new Node<>(child.edgeLabel.substring(0, commonLen));
+        Node<V> splitNode =
+                new Node<>(child.edgeLabel.substring(0, commonLen));
 
-        // 2. Shrink the existing child's edge to whatever wasn't shared,
-        //    and hang it under the new split node.
-        child.edgeLabel = child.edgeLabel.substring(commonLen);
-        splitNode.children.put(child.edgeLabel.charAt(0), child);
+        child.edgeLabel =
+                child.edgeLabel.substring(commonLen);
 
-        // 3. Replace the old child with the split node at this position.
+        splitNode.children.put(
+                child.edgeLabel.charAt(0),
+                child
+        );
+
         node.children.put(firstChar, splitNode);
 
-        // 4. Attach whatever's left of the new key under the split node.
         String remainingKey = key.substring(commonLen);
+
         if (remainingKey.isEmpty()) {
-            // The new key ends exactly at the split point.
+
             splitNode.isTerminal = true;
             splitNode.value = value;
+
         } else {
-            Node<V> newLeaf = new Node<>(remainingKey);
+
+            Node<V> newLeaf =
+                    new Node<>(remainingKey);
+
             newLeaf.isTerminal = true;
             newLeaf.value = value;
-            splitNode.children.put(remainingKey.charAt(0), newLeaf);
+
+            splitNode.children.put(
+                    remainingKey.charAt(0),
+                    newLeaf
+            );
         }
     }
 
-    /** Returns every value in the tree, in ascending key order. */
+    /**
+     * Returns every value in numeric stream-ID order.
+     */
     public List<V> collectAllInOrder() {
+
         List<V> results = new ArrayList<>();
+
         collect(root, results);
+
+        sortByStreamId(results);
+
         return results;
     }
 
     private void collect(Node<V> node, List<V> results) {
+
         if (node.isTerminal) {
             results.add(node.value);
         }
+
         for (Node<V> child : node.children.values()) {
             collect(child, results);
         }
     }
-    public List<V> collectRange(String start, String end) {
+
+    /**
+     * Returns entries between start and end.
+     *
+     * @param start Start stream ID
+     * @param end End stream ID
+     * @param exclusiveStart true means entry.id must be strictly greater than start
+     */
+    public List<V> collectRange(
+            String start,
+            String end,
+            boolean exclusiveStart
+    ) {
+
         List<V> results = new ArrayList<>();
-        collectRange(root, start, end, results);
+
+        collectRange(
+                root,
+                start,
+                end,
+                exclusiveStart,
+                results
+        );
+
+        sortByStreamId(results);
+
         return results;
     }
 
@@ -123,46 +154,72 @@ public class RadixTree<V> {
             Node<V> node,
             String start,
             String end,
+            boolean exclusiveStart,
             List<V> results
     ) {
+
         if (node.isTerminal) {
+
             StreamEntry entry = (StreamEntry) node.value;
 
-            if (compareStreamIds(entry.id, start) >= 0 &&
-                    compareStreamIds(entry.id, end) <= 0) {
+            int startComparison =
+                    compareStreamIds(entry.id, start);
 
+            int endComparison =
+                    compareStreamIds(entry.id, end);
+
+            boolean afterStart;
+
+            if (exclusiveStart) {
+                afterStart = startComparison > 0;
+            } else {
+                afterStart = startComparison >= 0;
+            }
+
+            if (afterStart && endComparison <= 0) {
                 results.add(node.value);
             }
         }
 
         for (Node<V> child : node.children.values()) {
-            collectRange(child, start, end, results);
+            collectRange(
+                    child,
+                    start,
+                    end,
+                    exclusiveStart,
+                    results
+            );
         }
     }
 
-    private static int commonPrefixLength(String a, String b) {
-        int max = Math.min(a.length(), b.length());
-        int i = 0;
-        while (i < max && a.charAt(i) == b.charAt(i)) {
-            i++;
-        }
-        return i;
-    }
-
-
+    /**
+     * Finds the entry with the maximum stream ID.
+     */
     public V findMax() {
         return findMax(root, null);
     }
 
     private V findMax(Node<V> node, V currentMax) {
-        if (node.isTerminal) {
-            if (currentMax == null) {
-                currentMax = node.value;
-            } else {
-                StreamEntry currentEntry = (StreamEntry) currentMax;
-                StreamEntry candidateEntry = (StreamEntry) node.value;
 
-                if (compareStreamIds(candidateEntry.id, currentEntry.id) > 0) {
+        if (node.isTerminal) {
+
+            if (currentMax == null) {
+
+                currentMax = node.value;
+
+            } else {
+
+                StreamEntry currentEntry =
+                        (StreamEntry) currentMax;
+
+                StreamEntry candidateEntry =
+                        (StreamEntry) node.value;
+
+                if (compareStreamIds(
+                        candidateEntry.id,
+                        currentEntry.id
+                ) > 0) {
+
                     currentMax = node.value;
                 }
             }
@@ -175,9 +232,62 @@ public class RadixTree<V> {
         return currentMax;
     }
 
-    private int compareStreamIds(String id1, String id2) {
-        String[] parts1 = id1.split("-");
-        String[] parts2 = id2.split("-");
+    /**
+     * Sorts stream entries using numeric stream-ID ordering.
+     */
+    private void sortByStreamId(List<V> results) {
+
+        results.sort(new Comparator<V>() {
+
+            @Override
+            public int compare(V a, V b) {
+
+                StreamEntry entryA =
+                        (StreamEntry) a;
+
+                StreamEntry entryB =
+                        (StreamEntry) b;
+
+                return compareStreamIds(
+                        entryA.id,
+                        entryB.id
+                );
+            }
+        });
+    }
+
+    private static int commonPrefixLength(
+            String a,
+            String b
+    ) {
+
+        int max = Math.min(a.length(), b.length());
+
+        int i = 0;
+
+        while (
+                i < max &&
+                        a.charAt(i) == b.charAt(i)
+        ) {
+            i++;
+        }
+
+        return i;
+    }
+
+    /**
+     * Compares Redis Stream IDs numerically.
+     *
+     * Example:
+     * 2-0 < 10-0
+     */
+    private static int compareStreamIds(
+            String id1,
+            String id2
+    ) {
+
+        String[] parts1 = id1.split("-", 2);
+        String[] parts2 = id2.split("-", 2);
 
         long ms1 = Long.parseLong(parts1[0]);
         long seq1 = Long.parseLong(parts1[1]);
@@ -185,12 +295,12 @@ public class RadixTree<V> {
         long ms2 = Long.parseLong(parts2[0]);
         long seq2 = Long.parseLong(parts2[1]);
 
-        if (ms1 != ms2) {
-            return Long.compare(ms1, ms2);
+        int msComparison = Long.compare(ms1, ms2);
+
+        if (msComparison != 0) {
+            return msComparison;
         }
 
         return Long.compare(seq1, seq2);
     }
-
-
 }
